@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Airport DB</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0e1a;
+    --panel: #111a2e;
+    --panel-border: #1e2a45;
+    --input-bg: #0e1626;
+    --text: #e8ecf3;
+    --text-muted: #7c89a3;
+    --text-dim: #4d5872;
+    --accent-blue: #2563eb;
+    --accent-blue-hover: #1d4ed8;
+    --accent-teal: #14b8a6;
+    --ok-green: #22c55e;
+    --err-red: #f43f5e;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    min-height: 100vh;
+    padding: 40px 16px 64px;
+  }
+
+  .wrap { max-width: 800px; margin: 0 auto; }
+
+  .header { margin-bottom: 28px; }
+  .eyebrow {
+    font-size: 11px; font-weight: 700; letter-spacing: 1.5px;
+    color: var(--text-dim); text-transform: uppercase; margin-bottom: 8px;
+  }
+  h1 { font-size: 28px; font-weight: 800; margin: 0 0 8px; color: var(--text); }
+  .subtitle { color: var(--text-muted); font-size: 14px; }
+
+  .ask-card {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
+    padding: 18px;
+    margin-bottom: 14px;
+  }
+
+  .ask-row { display: flex; gap: 10px; }
+
+  input[type="text"] {
+    flex: 1;
+    background: var(--input-bg);
+    border: 1px solid var(--panel-border);
+    color: var(--text);
+    padding: 13px 16px;
+    font-size: 14px;
+    border-radius: 8px;
+    outline: none;
+    font-family: inherit;
+  }
+  input[type="text"]:focus { border-color: var(--accent-blue); }
+  input[type="text"]::placeholder { color: var(--text-dim); }
+
+  button.ask-btn {
+    background: var(--accent-blue);
+    color: white;
+    border: none;
+    padding: 0 24px;
+    font-weight: 700;
+    font-size: 13px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  button.ask-btn:hover { background: var(--accent-blue-hover); }
+  button.ask-btn:disabled { background: #26344f; cursor: wait; color: var(--text-dim); }
+
+  .examples { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+  .example-pill {
+    font-size: 12px; color: var(--text-muted);
+    background: var(--input-bg);
+    border: 1px solid var(--panel-border);
+    padding: 7px 12px; border-radius: 20px;
+    cursor: pointer; transition: all 0.15s;
+  }
+  .example-pill:hover { border-color: var(--accent-blue); color: var(--text); }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
+    padding: 18px 20px;
+    margin-bottom: 14px;
+  }
+  .panel .label {
+    font-size: 10.5px; font-weight: 700; letter-spacing: 1.2px;
+    text-transform: uppercase; color: var(--text-dim); margin-bottom: 10px;
+  }
+  .panel .label.ok { color: var(--accent-teal); }
+  .panel .label.err { color: var(--err-red); }
+
+  .sql-block {
+    font-size: 13px; color: #74c0fc;
+    white-space: pre-wrap; word-break: break-word; line-height: 1.6;
+    font-family: 'SF Mono', Consolas, monospace;
+  }
+  .err-block { font-size: 13px; color: var(--err-red); line-height: 1.6; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td {
+    text-align: left; padding: 9px 12px;
+    border-bottom: 1px solid var(--panel-border);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220px;
+  }
+  th { color: var(--text-muted); font-size: 10.5px; letter-spacing: 0.8px; text-transform: uppercase; font-weight: 700; }
+  tr:hover td { background: #16203350; }
+  .table-scroll { overflow-x: auto; }
+  .row-count { font-size: 11.5px; color: var(--text-dim); margin-top: 12px; }
+  .empty-state { color: var(--text-dim); font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="header">
+    <div class="eyebrow">Text-to-SQL Prototype</div>
+    <h1>Airport DB</h1>
+    <div class="subtitle">English → get SQL + results</div>
+  </div>
+
+  <div class="ask-card">
+    <div class="ask-row">
+      <input type="text" id="question" placeholder="Ask about flights, gates, bookings, passengers..." autocomplete="off">
+      <button class="ask-btn" id="askBtn">Ask</button>
+    </div>
+    <div class="examples">
+      <span class="example-pill" onclick="fillAndAsk(this)">Which flights are delayed right now?</span>
+      <span class="example-pill" onclick="fillAndAsk(this)">List today's arrivals</span>
+      <span class="example-pill" onclick="fillAndAsk(this)">Show all departures to DXB</span>
+      <span class="example-pill" onclick="fillAndAsk(this)">How many passengers are booked on flight 123?</span>
+    </div>
+  </div>
+
+  <div id="results"></div>
+</div>
+
+<script>
+const API_BASE = window.location.origin;
+const input = document.getElementById('question');
+const askBtn = document.getElementById('askBtn');
+const results = document.getElementById('results');
+
+function fillAndAsk(el) {
+  input.value = el.textContent;
+  ask();
+}
+
+input.addEventListener('keydown', (e) => { if (e.key === 'Enter') ask(); });
+askBtn.addEventListener('click', ask);
+
+async function ask() {
+  const question = input.value.trim();
+  if (!question) return;
+
+  askBtn.disabled = true;
+  askBtn.textContent = '...';
+  results.innerHTML = '<div class="empty-state">Querying...</div>';
+
+  try {
+    const res = await fetch(`${API_BASE}/query`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question })
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      renderError(data.detail || 'Request failed');
+      return;
+    }
+    renderResults(data);
+  } catch (err) {
+    renderError(String(err));
+  } finally {
+    askBtn.disabled = false;
+    askBtn.textContent = 'Ask';
+  }
+}
+
+function renderError(message) {
+  results.innerHTML = `
+    <div class="panel">
+      <div class="label err">Error</div>
+      <div class="err-block">${escapeHtml(message)}</div>
+    </div>
+  `;
+}
+
+function renderResults(data) {
+  let html = `
+    <div class="panel">
+      <div class="label ok">Generated SQL</div>
+      <div class="sql-block">${escapeHtml(data.generated_sql)}</div>
+    </div>
+  `;
+
+  if (data.rows.length === 0) {
+    html += `<div class="panel"><div class="empty-state">No rows returned.</div></div>`;
+  } else {
+    const columns = Object.keys(data.rows[0]);
+    html += `<div class="panel"><div class="label ok">Results</div><div class="table-scroll"><table><thead><tr>`;
+    columns.forEach(c => html += `<th>${escapeHtml(c)}</th>`);
+    html += `</tr></thead><tbody>`;
+    data.rows.forEach(row => {
+      html += '<tr>';
+      columns.forEach(c => html += `<td title="${escapeHtml(String(row[c]))}">${escapeHtml(String(row[c]))}</td>`);
+      html += '</tr>';
+    });
+    html += `</tbody></table></div><div class="row-count">${data.row_count} row(s)</div></div>`;
+  }
+
+  results.innerHTML = html;
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+</script>
+</body>
+</html>

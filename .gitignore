@@ -1,0 +1,16 @@
+# Secrets - NEVER commit this, it has real DB credentials and API keys
+.env
+
+# Virtual environment - huge, machine-specific, never commit
+venv/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/

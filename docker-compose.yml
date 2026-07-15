@@ -1,0 +1,36 @@
+version: "3.9"
+
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    restart: unless-stopped
+    # Uncomment if using the local test Postgres service below instead of
+    # the real company database:
+    # depends_on:
+    #   - db
+
+  # ---------------------------------------------------------------------
+  # OPTIONAL: a local Postgres instance for testing this app without
+  # needing the real company database. Uncomment to use it, and set
+  # DATABASE_URL in .env to:
+  #   postgresql://demo_user:demo_pass@db:5432/airport_db
+  # (host is "db" - the service name above - not "localhost", since
+  # containers reach each other by service name on the compose network)
+  # ---------------------------------------------------------------------
+  # db:
+  #   image: postgres:16
+  #   environment:
+  #     POSTGRES_USER: demo_user
+  #     POSTGRES_PASSWORD: demo_pass
+  #     POSTGRES_DB: airport_db
+  #   ports:
+  #     - "5432:5432"
+  #   volumes:
+  #     - pgdata:/var/lib/postgresql/data
+
+# volumes:
+#   pgdata:
