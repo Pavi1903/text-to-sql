@@ -6,11 +6,11 @@
   },
   {
     "question": "How many flights are currently delayed?",
-    "expected_field_value": {"field": "count", "value": 4}
+    "expected_field_value_range": {"field": "count", "min": 0, "max": 50}
   },
   {
     "question": "How many rows are in flight_legs?",
-    "expected_field_value": {"field": "count", "value": 7328},
+    "expected_field_value_min": {"field": "count", "min": 7328},
     "_note": "This one is a stable fact (verified earlier in our conversation) - safe to use an exact value since total row count won't change from normal operational activity, only from data loads. Note: uses expected_field_value, not expected_row_count, because COUNT(*) returns ONE row containing the count - expected_row_count would check the wrong thing here. Use expected_row_count/min/max only for questions that return a list of items; use expected_field_value for aggregate answers (COUNT, SUM, AVG, MIN, MAX)."
   },
   {

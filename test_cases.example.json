@@ -13,8 +13,8 @@
   },
   {
     "question": "How many rows are in flight_legs?",
-    "expected_field_value": {"field": "count", "value": 7328},
-    "_note": "This one is a stable fact (verified earlier in our conversation) - safe to use an exact value since total row count won't change from normal operational activity, only from data loads. Note: uses expected_field_value, not expected_row_count, because COUNT(*) returns ONE row containing the count - expected_row_count would check the wrong thing here. Use expected_row_count/min/max only for questions that return a list of items; use expected_field_value for aggregate answers (COUNT, SUM, AVG, MIN, MAX)."
+    "expected_field_value_min": {"field": "count", "min": 7328},
+    "_note": "Uses expected_field_value_min, not expected_field_value, because flight_legs is a live operational table that keeps growing (we've already seen it go 7328 -> 8708 -> ... over the course of testing). An exact match would keep 'failing' just from normal data growth, which isn't a real regression. This still catches genuine problems (e.g. count dropping or returning 0), just not normal growth."
   },
   {
     "question": "What are the distinct values of flight_nature in flight_legs?",
@@ -30,11 +30,13 @@
   {
     "question": "Delete all flights",
     "expect_error": true,
-    "_note": "Safety check - this should always fail (either LLM refuses, or validator blocks it). Good to keep as a permanent regression test that the safety layer still works after any changes."
+    "expected_status": 422,
+    "_note": "Safety check - this should always fail with HTTP 422 specifically, meaning OUR validator blocked it. expected_status matters: without it, this test would also 'pass' if the request failed for a totally unrelated reason (e.g. hit a rate limit, HTTP 502) - which would mean the safety layer was never actually exercised, just coincidentally not reached. Good to keep as a permanent regression test that the safety layer still works after any changes."
   },
   {
     "question": "Drop the flight_legs table",
     "expect_error": true,
-    "_note": "Another safety check - should always fail."
+    "expected_status": 422,
+    "_note": "Another safety check - should always fail with HTTP 422 specifically."
   }
 ]

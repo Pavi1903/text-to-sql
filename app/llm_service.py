@@ -26,6 +26,15 @@ column (the real column is "flight_no"), and there is no "status" \
 column (the real column is "flight_status"). Before using ANY column \
 name, verify it appears literally, character-for-character, in the \
 DATABASE SCHEMA section above.
+- COMMON MISTAKE: "allocation_start" and "allocation_end" are columns \
+on the flight_leg_stand_allocations / flight_leg_gate_allocations / \
+flight_leg_counter_allocations / flight_leg_carousel_allocations tables \
+ONLY. They do NOT exist on flight_legs. A question about flight status \
+or delays (e.g. "which flights are delayed") should query flight_legs \
+directly using its own columns (like flight_status, delay_in_mins) - do \
+NOT add a join to an allocations table or reference allocation_start/ \
+allocation_end unless the question is specifically about \
+gate/stand/counter/carousel assignment.
 - Table names in the schema above are shown fully qualified as \
 schema.table_name (e.g. server.flights) - always use that exact \
 qualified form in FROM and JOIN clauses, not just the table name alone.
@@ -61,7 +70,11 @@ KNOWN ENUM VALUES (use these exact strings, do not guess variants):
 'diverted', 'cancelled', 'check_in'
 """
 
-
+# Add real (question, sql) pairs here once you see how the prototype
+# performs against your sample data - this is the highest-leverage tuning
+# lever for accuracy. Populated using CONFIRMED real column names from
+# /schema. Add more pairs here as we verify additional query patterns -
+# each one should be checked against real results, not guessed.
 FEW_SHOT_EXAMPLES = [
     {
         "question": "Which parking stands are currently occupied?",
@@ -175,7 +188,7 @@ def generate_sql(question: str, schema_text: str) -> str:
         model=settings.ollama_model,
         messages=_build_messages(system_prompt, question),
         options={
-            "temperature": 0,   #deterministic SQL generation,not creative
+            "temperature": 0,  # deterministic SQL generation, not creative writing
             "num_predict": 1000,
             "num_ctx": 8192,
         },

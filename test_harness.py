@@ -25,6 +25,10 @@ import urllib.request
 
 API_URL = "http://127.0.0.1:8000/query"
 TEST_CASES_FILE = "test_cases.json"
+# Local Ollama inference is genuinely slower than a cloud API, especially
+# with a large context window (num_ctx=8192) - give it real headroom
+# rather than timing out before it's finished.
+REQUEST_TIMEOUT_SECONDS = 90
 
 
 def run_query(question: str) -> dict:
@@ -36,7 +40,7 @@ def run_query(question: str) -> dict:
         method="POST",
     )
     try:
-        with urllib.request.urlopen(req, timeout=30) as resp:
+        with urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT_SECONDS) as resp:
             return json.loads(resp.read().decode("utf-8"))
     except urllib.error.HTTPError as e:
         try:
@@ -55,7 +59,15 @@ def check_case(case: dict) -> tuple[bool, str]:
 
     if result.get("error"):
         if case.get("expect_error"):
-            return True, "OK (error expected)"
+            expected_status = case.get("expected_status")
+            actual_status = result.get("status")
+            if expected_status is not None and actual_status != expected_status:
+                return False, (
+                    f"Got an error as expected, but for the wrong reason: "
+                    f"expected HTTP {expected_status}, got HTTP {actual_status}. "
+                    f"Detail: {result.get('detail')}"
+                )
+            return True, f"OK (error expected, got HTTP {actual_status})"
         return False, f"Request failed unexpectedly: {result.get('detail')}"
 
     if case.get("expect_error"):
@@ -97,6 +109,25 @@ def check_case(case: dict) -> tuple[bool, str]:
         if actual_value != expected_value:
             return False, (
                 f"Expected {field}={expected_value!r}, got {field}={actual_value!r}. "
+                f"SQL: {generated_sql}"
+            )
+
+    # For values that are expected to naturally grow over time in a live
+    # system (e.g. total row counts on an operational table), an exact
+    # match will keep "failing" forever just from normal data growth.
+    # Use this instead: "expected_field_value_min": {"field": "count", "min": 7328}
+    # This still catches real regressions (e.g. count suddenly dropping
+    # to 0 or something much smaller), without needing constant manual
+    # updates just because the table legitimately grew.
+    if "expected_field_value_min" in case:
+        spec = case["expected_field_value_min"]
+        field, min_value = spec["field"], spec["min"]
+        if not rows:
+            return False, f"Expected a row with {field}>={min_value}, but got no rows. SQL: {generated_sql}"
+        actual_value = rows[0].get(field)
+        if actual_value is None or actual_value < min_value:
+            return False, (
+                f"Expected {field}>={min_value}, got {field}={actual_value!r}. "
                 f"SQL: {generated_sql}"
             )
 
