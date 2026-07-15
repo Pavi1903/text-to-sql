@@ -95,6 +95,13 @@ FEW_SHOT_EXAMPLES = [
         ),
     },
     {
+        "question": "Which flights are delayed right now?",
+        "sql": (
+            "SELECT flight_no, sto, delay_in_mins FROM server.flight_legs "
+            "WHERE flight_status = 'delayed' LIMIT 100;"
+        ),
+    },
+    {
         "question": "List today's arrivals",
         "sql": (
             "SELECT flight_no, sto, eta, flight_status FROM server.flight_legs "
@@ -190,6 +197,15 @@ def generate_sql(question: str, schema_text: str) -> str:
         options={
             "temperature": 0,  # deterministic SQL generation, not creative writing
             "num_predict": 1000,
+            # IMPORTANT: Ollama's default context window (often 2048-4096
+            # tokens) is very likely too small to fit the full prompt here
+            # (schema for 35+ tables + 10 few-shot examples + rules can
+            # easily run several thousand tokens). If the context window
+            # truncates, the model literally can't see parts of the
+            # schema/examples, which looks exactly like it's guessing
+            # plausible-but-wrong column names - because from its
+            # perspective, it never saw the real ones. Set generously
+            # above what a full prompt actually needs.
             "num_ctx": 8192,
         },
     )
