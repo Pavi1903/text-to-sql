@@ -18,9 +18,7 @@ DB), so with a local model this can take a while - 10 runs at, say,
 
 import test_harness
 
-# Edit this to whatever question/pattern you're investigating. Uses the
-# exact same check fields as test_cases.json (expected_field_value,
-# expected_field_value_range, sql_contains, sql_not_contains, etc.)
+
 CASE_TO_CHECK = {
     "question": "Which flights are delayed right now?",
     "sql_not_contains": ["allocation_start", "allocation_end"],

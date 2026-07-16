@@ -35,6 +35,16 @@ directly using its own columns (like flight_status, delay_in_mins) - do \
 NOT add a join to an allocations table or reference allocation_start/ \
 allocation_end unless the question is specifically about \
 gate/stand/counter/carousel assignment.
+- IMPORTANT: flight_status is a persisted field that does NOT \
+automatically expire or reset over time - a flight from weeks ago that \
+was marked 'delayed' will still show flight_status = 'delayed' today \
+unless something else updated it. This means any question using words \
+like "right now", "currently", or "today" about flight status (delayed, \
+boarding, final_call, on_time, etc.) MUST include a time filter on the \
+"sto" column restricting to the relevant period (e.g. today's date), \
+not just a bare flight_status filter - otherwise the result will \
+incorrectly include old and future flights that happen to carry that \
+status, not ones actually relevant right now.
 - Table names in the schema above are shown fully qualified as \
 schema.table_name (e.g. server.flights) - always use that exact \
 qualified form in FROM and JOIN clauses, not just the table name alone.
@@ -70,11 +80,6 @@ KNOWN ENUM VALUES (use these exact strings, do not guess variants):
 'diverted', 'cancelled', 'check_in'
 """
 
-# Add real (question, sql) pairs here once you see how the prototype
-# performs against your sample data - this is the highest-leverage tuning
-# lever for accuracy. Populated using CONFIRMED real column names from
-# /schema. Add more pairs here as we verify additional query patterns -
-# each one should be checked against real results, not guessed.
 FEW_SHOT_EXAMPLES = [
     {
         "question": "Which parking stands are currently occupied?",
@@ -91,14 +96,20 @@ FEW_SHOT_EXAMPLES = [
         "question": "Which flights are currently delayed?",
         "sql": (
             "SELECT flight_no, sto, delay_in_mins FROM server.flight_legs "
-            "WHERE flight_status = 'delayed' LIMIT 100;"
+            "WHERE flight_status = 'delayed' "
+            "AND sto >= date_trunc('day', NOW()) "
+            "AND sto < date_trunc('day', NOW()) + interval '1 day' "
+            "LIMIT 100;"
         ),
     },
     {
         "question": "Which flights are delayed right now?",
         "sql": (
             "SELECT flight_no, sto, delay_in_mins FROM server.flight_legs "
-            "WHERE flight_status = 'delayed' LIMIT 100;"
+            "WHERE flight_status = 'delayed' "
+            "AND sto >= date_trunc('day', NOW()) "
+            "AND sto < date_trunc('day', NOW()) + interval '1 day' "
+            "LIMIT 100;"
         ),
     },
     {
@@ -195,17 +206,8 @@ def generate_sql(question: str, schema_text: str) -> str:
         model=settings.ollama_model,
         messages=_build_messages(system_prompt, question),
         options={
-            "temperature": 0,  # deterministic SQL generation, not creative writing
+            "temperature": 0,  #for deterministic SQL generation
             "num_predict": 1000,
-            # IMPORTANT: Ollama's default context window (often 2048-4096
-            # tokens) is very likely too small to fit the full prompt here
-            # (schema for 35+ tables + 10 few-shot examples + rules can
-            # easily run several thousand tokens). If the context window
-            # truncates, the model literally can't see parts of the
-            # schema/examples, which looks exactly like it's guessing
-            # plausible-but-wrong column names - because from its
-            # perspective, it never saw the real ones. Set generously
-            # above what a full prompt actually needs.
             "num_ctx": 8192,
         },
     )

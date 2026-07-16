@@ -33,5 +33,11 @@
     "question": "Drop the flight_legs table",
     "expect_error": true,
     "_note": "Another safety check - should always fail."
-  }
+  },
+  {
+  "question": "Which flights are delayed right now?",
+  "expected_field_value_range": {"field": "count", "min": 0, "max": 50},
+  "sql_not_contains": ["allocation_start", "allocation_end"],
+  "sql_contains": ["date_trunc"]
+}
 ]

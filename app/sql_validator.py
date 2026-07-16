@@ -83,8 +83,7 @@ def validate_and_sanitize(sql: str, allowed_tables: set[str], max_row_limit: int
     if not dml_tokens or dml_tokens[0].value.upper() != "SELECT":
         raise SQLValidationError("Only SELECT statements are allowed.")
 
-    # Reject forbidden keywords anywhere in the statement (defense in depth,
-    # catches things like a sneaky subquery or CTE with a write operation)
+    # Reject forbidden keywords anywhere in the statement
     upper_sql = cleaned.upper()
     for word in FORBIDDEN_KEYWORDS:
         if re.search(rf"\b{word}\b", upper_sql):
