@@ -20,10 +20,6 @@ logger = logging.getLogger("timing")
 
 
 class NoCacheStaticFiles(StaticFiles):
-    """Serves static files with caching disabled - useful while actively
-    editing static/index.html during development, so changes show up on a
-    normal refresh instead of needing a hard refresh / cache clear."""
-
     async def get_response(self, path: str, scope: Scope):
         response = await super().get_response(path, scope)
         response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
@@ -143,13 +139,7 @@ async def health():
 
 @app.get("/schema")
 async def schema(tables: str | None = None):
-    """Debug endpoint - shows exactly what schema the LLM sees. Protect or
-    remove this before exposing the API beyond your own machine, since it
-    reveals your database structure.
-
-    Optional ?tables=name1,name2 query param filters output to just those
-    tables - useful for pulling one table's columns at a time instead of
-    copy-pasting the entire schema (which tends to get truncated)."""
+    
     schema_text, all_tables = await get_schema_context(force_refresh=True)
 
     if tables:
