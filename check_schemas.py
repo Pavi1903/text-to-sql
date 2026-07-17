@@ -1,12 +1,3 @@
-"""
-One-off diagnostic: lists every schema and table this DB connection can
-see. Run this when /schema returns empty tables, to find out which
-Postgres schema your real tables actually live in (it might not be the
-default 'public' schema).
-
-    python check_schemas.py
-"""
-
 import asyncio
 import asyncpg
 from app.config import settings
