@@ -8,7 +8,7 @@ class Settings(BaseSettings):
     db_schema: str = "public"
     ollama_host: str = "http://localhost:11434"
     ollama_model: str = "qwen2.5-coder:7b"
-    allowed_tables: str = ""  # comma-separated, empty = all tables
+    allowed_tables: str = ""  
     max_row_limit: int = 200
     query_timeout_seconds: int = 5
 

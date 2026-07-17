@@ -123,6 +123,58 @@
   .table-scroll { overflow-x: auto; }
   .row-count { font-size: 11.5px; color: var(--text-dim); margin-top: 12px; }
   .empty-state { color: var(--text-dim); font-size: 13px; }
+
+  .runway-wrap {
+    position: relative;
+    height: 100px;
+    margin: 8px 0 4px;
+    overflow: hidden;
+  }
+
+  .runway-line {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 28px;
+    height: 2px;
+    background: repeating-linear-gradient(
+      90deg,
+      var(--panel-border) 0 16px,
+      transparent 16px 30px
+    );
+  }
+
+  .runway-plane {
+    position: absolute;
+    bottom: 30px;
+    left: 24px;
+    width: 30px;
+    height: 30px;
+    color: var(--accent-blue);
+    animation: plane-idle 1.3s ease-in-out infinite;
+  }
+
+  .runway-plane svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+
+  @keyframes plane-idle {
+    0%, 100% { transform: translateY(0) rotate(90deg); }
+    50%      { transform: translateY(-2px) rotate(88deg); }
+  }
+
+  .runway-plane.takeoff {
+    animation: plane-takeoff 1s cubic-bezier(0.45, 0, 0.4, 1) forwards;
+  }
+
+  @keyframes plane-takeoff {
+    0%   { transform: translate(0, 0) rotate(90deg); opacity: 1; }
+    30%  { transform: translate(60px, 0) rotate(90deg); opacity: 1; }
+    65%  { transform: translate(150px, -36px) rotate(68deg); opacity: 1; }
+    100% { transform: translate(280px, -130px) rotate(55deg); opacity: 0; }
+  }
 </style>
 </head>
 <body>
@@ -163,13 +215,40 @@ function fillAndAsk(el) {
 input.addEventListener('keydown', (e) => { if (e.key === 'Enter') ask(); });
 askBtn.addEventListener('click', ask);
 
+// Material Design "flight" glyph - a simple, recognizable side-view plane silhouette
+const PLANE_SVG = `<svg viewBox="0 0 24 24" fill="currentColor">
+  <path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2.5 1.5V22l4-1 4 1v-1.5L14 19v-5.5l7 2.5z"/>
+</svg>`;
+
+function showLoading() {
+  results.innerHTML = `
+    <div class="runway-wrap">
+      <div class="runway-line"></div>
+      <div class="runway-plane" id="runwayPlane">${PLANE_SVG}</div>
+    </div>
+  `;
+}
+
+
+function playTakeoff() {
+  return new Promise((resolve) => {
+    const plane = document.getElementById('runwayPlane');
+    if (!plane) { resolve(); return; }
+    plane.classList.add('takeoff');
+    setTimeout(resolve, 1000); // matches the CSS animation duration
+  });
+}
+
 async function ask() {
   const question = input.value.trim();
   if (!question) return;
 
   askBtn.disabled = true;
   askBtn.textContent = '...';
-  results.innerHTML = '<div class="empty-state">Querying...</div>';
+  showLoading();
+
+  let ok = true;
+  let data = null;
 
   try {
     const res = await fetch(`${API_BASE}/query`, {
@@ -177,19 +256,23 @@ async function ask() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ question })
     });
-    const data = await res.json();
-
-    if (!res.ok) {
-      renderError(data.detail || 'Request failed');
-      return;
-    }
-    renderResults(data);
+    data = await res.json();
+    ok = res.ok;
   } catch (err) {
-    renderError(String(err));
-  } finally {
-    askBtn.disabled = false;
-    askBtn.textContent = 'Ask';
+    ok = false;
+    data = { detail: String(err) };
   }
+
+  await playTakeoff();
+
+  if (ok) {
+    renderResults(data);
+  } else {
+    renderError(data.detail || 'Request failed');
+  }
+
+  askBtn.disabled = false;
+  askBtn.textContent = 'Ask';
 }
 
 function renderError(message) {

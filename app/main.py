@@ -1,3 +1,5 @@
+import logging
+import time
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, Request
@@ -12,6 +14,9 @@ from app.database import init_pool, close_pool, get_pool
 from app.schema_service import get_schema_context
 from app.llm_service import generate_sql
 from app.sql_validator import validate_and_sanitize, SQLValidationError
+
+logging.basicConfig(level=logging.INFO, format="%(message)s")
+logger = logging.getLogger("timing")
 
 
 class NoCacheStaticFiles(StaticFiles):
@@ -69,7 +74,10 @@ async def query(request: QueryRequest):
     if not question:
         raise HTTPException(status_code=400, detail="Question cannot be empty.")
 
+    t_start = time.perf_counter()
+
     schema_text, valid_tables = await get_schema_context()
+    t_schema = time.perf_counter()
 
     try:
         raw_sql = generate_sql(question, schema_text)
@@ -78,6 +86,7 @@ async def query(request: QueryRequest):
             status_code=502,
             detail=f"Could not reach the LLM to generate SQL: {e}",
         )
+    t_llm = time.perf_counter()
 
     if raw_sql.strip().upper() == "UNANSWERABLE":
         raise HTTPException(
@@ -96,6 +105,7 @@ async def query(request: QueryRequest):
             status_code=422,
             detail=f"Generated query failed safety validation: {e} (SQL was: {raw_sql})",
         )
+    t_validate = time.perf_counter()
 
     pool = get_pool()
     try:
@@ -110,7 +120,18 @@ async def query(request: QueryRequest):
             detail=f"Query execution failed: {e} (SQL was: {safe_sql})",
         )
 
+    t_db = time.perf_counter()
+
     rows = [dict(r) for r in records]
+
+    logger.info(
+        f"[TIMING] '{question[:50]}' | "
+        f"schema={1000*(t_schema-t_start):.0f}ms | "
+        f"llm={1000*(t_llm-t_schema):.0f}ms | "
+        f"validate={1000*(t_validate-t_llm):.0f}ms | "
+        f"db={1000*(t_db-t_validate):.0f}ms | "
+        f"total={1000*(t_db-t_start):.0f}ms"
+    )
 
     return QueryResponse(
         question=question,
@@ -126,12 +147,38 @@ async def health():
 
 
 @app.get("/schema")
-async def schema():
+async def schema(tables: str | None = None):
     """Debug endpoint - shows exactly what schema the LLM sees. Protect or
     remove this before exposing the API beyond your own machine, since it
-    reveals your database structure."""
-    schema_text, tables = await get_schema_context(force_refresh=True)
-    return {"tables": sorted(tables), "schema_text": schema_text}
+    reveals your database structure.
+
+    Optional ?tables=name1,name2 query param filters output to just those
+    tables - useful for pulling one table's columns at a time instead of
+    copy-pasting the entire schema (which tends to get truncated)."""
+    schema_text, all_tables = await get_schema_context(force_refresh=True)
+
+    if tables:
+        requested = {t.strip() for t in tables.split(",") if t.strip()}
+        matched = requested & all_tables
+        unmatched = requested - all_tables
+
+        # Filter schema_text down to just the requested tables' blocks
+        blocks = schema_text.split("TABLE ")
+        filtered_blocks = [
+            b for b in blocks
+            if b and any(b.startswith(f"{settings.db_schema}.{name}") or b.startswith(f"{name}")
+                          for name in matched)
+        ]
+        filtered_text = "TABLE " + "\nTABLE ".join(filtered_blocks) if filtered_blocks else ""
+
+        return {
+            "requested": sorted(requested),
+            "matched": sorted(matched),
+            "not_found": sorted(unmatched),
+            "schema_text": filtered_text,
+        }
+
+    return {"tables": sorted(all_tables), "schema_text": schema_text}
 
 
 # Serves the test UI at http://localhost:8000/

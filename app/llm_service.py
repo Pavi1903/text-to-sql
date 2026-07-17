@@ -204,9 +204,10 @@ def generate_sql(question: str, schema_text: str) -> str:
 
     response = _client.chat(
         model=settings.ollama_model,
-        messages=_build_messages(system_prompt, question),
+        messages=_build_messages(system_prompt, question), 
+        keep_alive="30m",
         options={
-            "temperature": 0,  #for deterministic SQL generation
+            "temperature": 0,  
             "num_predict": 1000,
             "num_ctx": 8192,
         },
