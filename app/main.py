@@ -40,8 +40,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Airport Text-to-SQL API", lifespan=lifespan)
 
-# Wide open for local development. Lock this down (specific origins) before
-# pointing the real frontend at this in production.
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
