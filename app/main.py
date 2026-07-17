@@ -51,8 +51,6 @@ app.add_middleware(
 
 @app.exception_handler(Exception)
 async def catch_all_handler(request: Request, exc: Exception):
-    # Ensures the frontend always gets JSON back, even for bugs we didn't
-    # anticipate, instead of a plain-text 500 page that breaks res.json().
     return JSONResponse(status_code=500, content={"detail": f"Unexpected server error: {exc}"})
 
 
@@ -109,8 +107,6 @@ async def query(request: QueryRequest):
     pool = get_pool()
     try:
         async with pool.acquire() as conn:
-            # Belt-and-braces: run inside a read-only transaction even
-            # though the DB role itself should already be read-only.
             async with conn.transaction(readonly=True):
                 records = await conn.fetch(safe_sql)
     except Exception as e:
@@ -161,7 +157,6 @@ async def schema(tables: str | None = None):
         matched = requested & all_tables
         unmatched = requested - all_tables
 
-        # Filter schema_text down to just the requested tables' blocks
         blocks = schema_text.split("TABLE ")
         filtered_blocks = [
             b for b in blocks
@@ -180,5 +175,4 @@ async def schema(tables: str | None = None):
     return {"tables": sorted(all_tables), "schema_text": schema_text}
 
 
-# Serves the test UI at http://localhost:8000/
 app.mount("/", NoCacheStaticFiles(directory="static", html=True), name="static")
