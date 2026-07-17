@@ -16,19 +16,6 @@ class SQLValidationError(Exception):
 
 
 def _extract_table_names(parsed_statement) -> set[str]:
-    """
-    Extracts table names referenced in FROM/JOIN clauses.
-
-    Deliberately only looks at the token immediately following each
-    FROM/JOIN keyword, rather than scanning forward until some stop-word
-    (WHERE/ORDER BY/etc). The stop-word approach is fragile: sqlparse
-    tokenizes "ORDER BY" as a single keyword token, not two, so a naive
-    check for the literal string "ORDER" never matches and scanning
-    continues past it - which previously caused a column reference in an
-    ORDER BY clause (e.g. "ORDER BY f.sto") to be misread as a table
-    name. Only looking at the token directly after FROM/JOIN sidesteps
-    this class of bug entirely.
-    """
     tables = set()
     tokens = list(parsed_statement.tokens)
 
@@ -57,10 +44,6 @@ def _extract_table_names(parsed_statement) -> set[str]:
 
 
 def validate_and_sanitize(sql: str, allowed_tables: set[str], max_row_limit: int) -> str:
-    """
-    Raises SQLValidationError if the query is unsafe.
-    Returns a (possibly modified) SQL string safe to execute.
-    """
     cleaned = sql.strip().rstrip(";")
 
     if not cleaned:
