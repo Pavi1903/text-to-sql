@@ -1,21 +1,3 @@
-"""
-Reliability check - asks the SAME question multiple times against the
-live chatbot and reports what fraction of attempts pass a given check.
-
-Useful for quantifying non-deterministic failure patterns (like a
-hallucination that shows up sometimes but not always) with a real
-number, instead of relying on "it seemed to work" / "it seemed broken"
-from a single observation.
-
-USAGE:
-    Edit CASE_TO_CHECK and NUM_RUNS below, then:
-        python reliability_check.py
-
-Each run is a real call through the full pipeline (LLM -> validator ->
-DB), so with a local model this can take a while - 10 runs at, say,
-5-15 seconds each is a few minutes, not instant.
-"""
-
 import test_harness
 
 
