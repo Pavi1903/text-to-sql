@@ -1,10 +1,3 @@
-"""
-Introspects the live Postgres schema so the LLM always has an accurate,
-up-to-date picture of the database - no manual schema docs to keep in sync.
-Works generically against whatever tables actually exist; nothing here is
-hardcoded to a specific schema.
-"""
-
 import time
 from dataclasses import dataclass, field
 
