@@ -2,7 +2,6 @@ import asyncio
 import asyncpg
 from app.config import settings
 
-
 async def main():
     conn = await asyncpg.connect(dsn=settings.database_url)
 
