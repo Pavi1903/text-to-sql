@@ -1,9 +1,3 @@
-"""
-Deterministic safety net around the LLM's SQL output. This is the
-rule-based half of the hybrid approach: the LLM decides *what* the query
-is, this module decides whether it's *safe* to run.
-"""
-
 import re
 
 import sqlparse
