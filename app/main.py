@@ -36,6 +36,10 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Airport Text-to-SQL API", lifespan=lifespan)
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> c25fdf3b4ec48ebcd684ce56aed678c8732cd9c3
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -139,7 +143,6 @@ async def health():
 @app.get("/schema")
 async def schema(tables: str | None = None):
     schema_text, all_tables = await get_schema_context(force_refresh=True)
-
     if tables:
         requested = {t.strip() for t in tables.split(",") if t.strip()}
         matched = requested & all_tables
@@ -163,4 +166,8 @@ async def schema(tables: str | None = None):
     return {"tables": sorted(all_tables), "schema_text": schema_text}
 
 
+<<<<<<< HEAD
 app.mount("/", NoCacheStaticFiles(directory="static", html=True), name="static")
+=======
+app.mount("/", NoCacheStaticFiles(directory="static", html=True), name="static")
+>>>>>>> c25fdf3b4ec48ebcd684ce56aed678c8732cd9c3

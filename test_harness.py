@@ -84,6 +84,8 @@ def check_case(case: dict) -> tuple[bool, str]:
                 f"SQL: {generated_sql}"
             )
 
+   
+
     if "expected_field_value_min" in case:
         spec = case["expected_field_value_min"]
         field, min_value = spec["field"], spec["min"]
