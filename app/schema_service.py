@@ -1,10 +1,3 @@
-"""
-Introspects the live Postgres schema so the LLM always has an accurate,
-up-to-date picture of the database - no manual schema docs to keep in sync.
-Works generically against whatever tables actually exist; nothing here is
-hardcoded to a specific schema.
-"""
-
 import time
 from dataclasses import dataclass, field
 
@@ -13,6 +6,10 @@ from app.database import get_pool
 
 _CACHE_TTL_SECONDS = 300
 _cache: dict = {"schema_text": None, "table_names": set(), "fetched_at": 0.0}
+
+_EXCLUDED_COLUMNS = {
+    "created_at", "updated_at", "tenant_id", "lock_version", "documents",
+}
 
 
 @dataclass
@@ -113,6 +110,8 @@ def _render_schema_text(tables: dict[str, TableInfo], schema_name: str) -> str:
         qualified_name = f"{schema_name}.{table.name}"
         lines.append(f"TABLE {qualified_name} (")
         for col in table.columns:
+            if col.name in _EXCLUDED_COLUMNS:
+                continue
             pk = " PRIMARY KEY" if col.is_primary_key else ""
             nullable = "" if col.is_nullable else " NOT NULL"
             lines.append(f"  {col.name} {col.data_type}{pk}{nullable}")
@@ -126,7 +125,6 @@ def _render_schema_text(tables: dict[str, TableInfo], schema_name: str) -> str:
 
 
 async def get_schema_context(force_refresh: bool = False) -> tuple[str, set[str]]:
-    """Returns (schema_text_for_prompt, set_of_valid_table_names)."""
     now = time.time()
     if (
         not force_refresh

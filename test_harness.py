@@ -1,23 +1,3 @@
-"""
-Regression test harness for the text-to-SQL chatbot.
-
-Runs a list of (question, expected result) pairs against the live /query
-endpoint and reports pass/fail. Use this after any prompt/schema change
-to catch regressions before they reach a demo.
-
-WORKFLOW:
-    1. Ask a question in the browser, verify the answer is correct by
-       cross-checking in pgAdmin (see PGADMIN_VERIFICATION.md)
-    2. Once verified, add it to test_cases.json with the real, confirmed
-       expected result
-    3. Run this script any time you change llm_service.py, schema_service.py,
-       or sql_validator.py, to make sure nothing broke
-
-USAGE:
-    Make sure the server is running (uvicorn app.main:app), then:
-        python test_harness.py
-"""
-
 import json
 import sys
 import urllib.error
@@ -25,9 +5,6 @@ import urllib.request
 
 API_URL = "http://127.0.0.1:8000/query"
 TEST_CASES_FILE = "test_cases.json"
-# Local Ollama inference is genuinely slower than a cloud API, especially
-# with a large context window (num_ctx=8192) - give it real headroom
-# rather than timing out before it's finished.
 REQUEST_TIMEOUT_SECONDS = 90
 
 
@@ -95,11 +72,6 @@ def check_case(case: dict) -> tuple[bool, str]:
             f"{row_count}. SQL: {generated_sql}"
         )
 
-    # For aggregate questions (COUNT, SUM, AVG, etc.) the result is a
-    # single row containing the value, not N rows - so "row count" isn't
-    # what you want to check. Use expected_field_value to check the
-    # actual value instead, e.g.:
-    #   "expected_field_value": {"field": "count", "value": 7328}
     if "expected_field_value" in case:
         spec = case["expected_field_value"]
         field, expected_value = spec["field"], spec["value"]
@@ -112,13 +84,6 @@ def check_case(case: dict) -> tuple[bool, str]:
                 f"SQL: {generated_sql}"
             )
 
-    # For values that are expected to naturally grow over time in a live
-    # system (e.g. total row counts on an operational table), an exact
-    # match will keep "failing" forever just from normal data growth.
-    # Use this instead: "expected_field_value_min": {"field": "count", "min": 7328}
-    # This still catches real regressions (e.g. count suddenly dropping
-    # to 0 or something much smaller), without needing constant manual
-    # updates just because the table legitimately grew.
     if "expected_field_value_min" in case:
         spec = case["expected_field_value_min"]
         field, min_value = spec["field"], spec["min"]
@@ -129,6 +94,26 @@ def check_case(case: dict) -> tuple[bool, str]:
             return False, (
                 f"Expected {field}>={min_value}, got {field}={actual_value!r}. "
                 f"SQL: {generated_sql}"
+            )
+
+    if "expected_field_value_range" in case:
+        spec = case["expected_field_value_range"]
+        field = spec["field"]
+        min_value, max_value = spec.get("min"), spec.get("max")
+        if not rows:
+            return False, f"Expected a row with a value for {field}, but got no rows. SQL: {generated_sql}"
+        actual_value = rows[0].get(field)
+        if actual_value is None:
+            return False, f"Expected a value for {field}, got None. SQL: {generated_sql}"
+        if min_value is not None and actual_value < min_value:
+            return False, (
+                f"Expected {field} in range [{min_value}, {max_value}], "
+                f"got {actual_value!r} (below minimum). SQL: {generated_sql}"
+            )
+        if max_value is not None and actual_value > max_value:
+            return False, (
+                f"Expected {field} in range [{min_value}, {max_value}], "
+                f"got {actual_value!r} (above maximum). SQL: {generated_sql}"
             )
 
     rows_text = json.dumps(rows, default=str).lower()
@@ -145,6 +130,20 @@ def check_case(case: dict) -> tuple[bool, str]:
             return False, (
                 f"Expected '{needle}' NOT in results but found it. "
                 f"SQL: {generated_sql}"
+            )
+
+    sql_lower = generated_sql.lower()
+    for needle in case.get("sql_not_contains", []):
+        if needle.lower() in sql_lower:
+            return False, (
+                f"Generated SQL contains '{needle}', which shouldn't be "
+                f"there for this question. SQL: {generated_sql}"
+            )
+    for needle in case.get("sql_contains", []):
+        if needle.lower() not in sql_lower:
+            return False, (
+                f"Generated SQL was expected to contain '{needle}' but "
+                f"didn't. SQL: {generated_sql}"
             )
 
     return True, f"OK ({row_count} rows)"
