@@ -1,7 +1,7 @@
-# Secrets - NEVER commit this, it has real DB credentials and API keys
+# Secrets
 .env
 
-# Virtual environment - huge, machine-specific, never commit
+# Virtual environment
 venv/
 
 # Python cache
